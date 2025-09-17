@@ -7,9 +7,14 @@ import { errorMiddleware } from "./middlewares/errors.ts";
 
 dotenv.config();
 const app: Express = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
+
+app.get("/", (req, res) => {
+  res.send("Backend is running on Render 🚀");
+});
+
 app.use("/api", rootRouter);
 
 export const prismaClient = new PrismaClient({ log: ["query"] }).$extends({
