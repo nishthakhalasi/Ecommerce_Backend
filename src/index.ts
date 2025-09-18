@@ -4,10 +4,19 @@ import dotenv from "dotenv";
 import rootRouter from "./routes/index.ts";
 import { PrismaClient } from "@prisma/client";
 import { errorMiddleware } from "./middlewares/errors.ts";
+import cors from "cors";
 
 dotenv.config();
 const app: Express = express();
 const PORT = process.env.PORT;
+
+app.use(
+  cors({
+    origin: "http://localhost:3001",
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true,
+  })
+);
 
 app.use(express.json());
 
