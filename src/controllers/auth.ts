@@ -17,7 +17,9 @@ export const signup = async (
   next: NextFunction
 ) => {
   SignUpSchema.parse(req.body);
-  const { email, password, name } = req.body;
+  const { email, password, name, phone } = req.body;
+  // Save uploaded file path if file exists
+  const profilePicture = req.file ? `/uploads/${req.file.filename}` : null;
 
   let user = await prismaClient.user.findFirst({ where: { email } });
 
@@ -29,7 +31,13 @@ export const signup = async (
   }
 
   user = await prismaClient.user.create({
-    data: { name, email, password: hashSync(password, 10) },
+    data: {
+      name,
+      email,
+      password: hashSync(password, 10),
+      phone,
+      profilePicture,
+    },
   });
   res.json(user);
 };
@@ -49,7 +57,10 @@ export const login = async (req: Request, res: Response) => {
       ErrorCodes.INCORRECT_PASSWORD
     );
   }
-
+  await prismaClient.user.update({
+    where: { id: user.id },
+    data: { lastLogin: new Date() },
+  });
   const token = jwt.sign(
     {
       userId: user.id,
@@ -63,5 +74,9 @@ export const login = async (req: Request, res: Response) => {
 // /me -> return the logged in user
 
 export const me = async (req: Request, res: Response) => {
-  res.json(req.user);
+  if (!req.user) {
+    return res.status(401).json({ message: "Not authenticated" });
+  }
+  const { password, ...userData } = req.user;
+  res.json(userData);
 };

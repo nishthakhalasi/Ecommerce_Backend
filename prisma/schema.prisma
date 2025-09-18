@@ -28,23 +28,28 @@ enum OrderEventStatus{
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  name      String
-  email     String   @unique
-  password  String
-  role      Role     @default(USER)
+  id                     Int       @id @default(autoincrement())
+  name                   String
+  email                  String    @unique
+  password               String
+  role                   Role      @default(USER)
+  phone                  String?   // optional phone number
+  profilePicture         String?   // URL to profile picture
+  status                 Boolean   @default(true) // active/inactive
+  lastLogin              DateTime? // optional last login timestamp
   defaultShippingAddress Int?
-  defaultBillingAddress Int?
+  defaultBillingAddress  Int?
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
 
-  address Address[]
-  cartItems CartItem[]
-  orders Order[]
+  address                Address[]
+  cartItems              CartItem[]
+  orders                 Order[]
 
   @@map("users")
 }
+
 
 model Address {
   id        Int      @id @default(autoincrement())

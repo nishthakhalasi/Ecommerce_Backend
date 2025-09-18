@@ -11,6 +11,7 @@ import {
   updateUser,
 } from "../controllers/users";
 import adminMiddleware from "../middlewares/admin";
+import upload from "../middlewares/upload.ts";
 
 const usersRoutes = Router();
 
@@ -23,7 +24,13 @@ usersRoutes.delete(
 );
 
 usersRoutes.get("/address", [authMiddleware], errorHandler(listAddress));
-usersRoutes.put("/", [authMiddleware], errorHandler(updateUser));
+// usersRoutes.put("/", [authMiddleware], errorHandler(updateUser));
+usersRoutes.put(
+  "/update",
+  authMiddleware,
+  upload.single("profilePicture"), // add multer middleware
+  errorHandler(updateUser)
+);
 
 usersRoutes.put(
   "/:id/role",
