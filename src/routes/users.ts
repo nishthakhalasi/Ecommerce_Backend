@@ -28,7 +28,7 @@ usersRoutes.get("/address", [authMiddleware], errorHandler(listAddress));
 usersRoutes.put(
   "/update",
   authMiddleware,
-  upload.single("profilePicture"), // add multer middleware
+  upload.single("profilePicture"),
   errorHandler(updateUser)
 );
 

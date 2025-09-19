@@ -64,11 +64,14 @@ export const login = async (req: Request, res: Response) => {
   const token = jwt.sign(
     {
       userId: user.id,
+      role: user.role,
     },
     JWT_SECRET,
     { expiresIn: "1h" }
   );
-  res.json({ user, token });
+  // res.json({ user, token });
+  const { password: _, ...userData } = user;
+  res.json({ ...userData, role: user.role, token });
 };
 
 // /me -> return the logged in user
