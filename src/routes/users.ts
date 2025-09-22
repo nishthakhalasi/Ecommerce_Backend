@@ -24,10 +24,10 @@ usersRoutes.delete(
 );
 
 usersRoutes.get("/address", [authMiddleware], errorHandler(listAddress));
-// usersRoutes.put("/", [authMiddleware], errorHandler(updateUser));
+
 usersRoutes.put(
-  "/update",
-  authMiddleware,
+  "/:id/update",
+  [authMiddleware, adminMiddleware],
   upload.single("profilePicture"),
   errorHandler(updateUser)
 );

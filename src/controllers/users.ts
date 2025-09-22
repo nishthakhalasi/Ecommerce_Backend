@@ -53,66 +53,71 @@ export const updateUser = async (req: Request, res: Response) => {
   if (!req.user) {
     throw new UnauthorizedException("Unauthorized", ErrorCodes.UNAUTHORIZED);
   }
-  const validatedData = UpdateUserSchema.parse(req.body);
-  // Handle uploaded profile picture
-  if (req.file) {
-    validatedData.profilePicture = `/uploads/${req.file.filename}`;
-  }
-  let shippingAddress: Address;
-  let billingAddress: Address;
+
+  const userId = Number(req.params.id);
+  const {
+    name,
+    phone,
+    defaultShippingAddress,
+    defaultBillingAddress,
+    status,
+    lastLogin,
+  } = req.body;
+
+  // Build the object only with fields provided by the client
+  const dataToValidate = {
+    ...(name && { name }),
+    ...(phone && { phone }),
+    ...(defaultShippingAddress
+      ? { defaultShippingAddress: Number(defaultShippingAddress) }
+      : {}),
+    ...(defaultBillingAddress
+      ? { defaultBillingAddress: Number(defaultBillingAddress) }
+      : {}),
+    ...(typeof status !== "undefined" ? { status } : {}),
+    ...(lastLogin ? { lastLogin: new Date(lastLogin) } : {}),
+    ...(req.file ? { profilePicture: `/uploads/${req.file.filename}` } : {}),
+  };
+
+  // Validate only provided fields
+  const validatedData = UpdateUserSchema.parse(dataToValidate);
+
+  // Handle default shipping & billing addresses if provided
   if (validatedData.defaultShippingAddress) {
-    try {
-      shippingAddress = await prismaClient.address.findFirstOrThrow({
-        where: {
-          id: validatedData.defaultShippingAddress,
-        },
-      });
-    } catch (error) {
-      throw new NotFoundException(
-        "address not found",
-        ErrorCodes.ADDRESS_NOT_FOUND
-      );
-    }
-    if (shippingAddress.userId != req.user.id) {
+    const shippingAddress = await prismaClient.address.findFirstOrThrow({
+      where: { id: validatedData.defaultShippingAddress },
+    });
+    if (req.user.role !== "ADMIN" && shippingAddress.userId !== req.user.id) {
       throw new BadRequestsException(
-        "address does not belong to user",
+        "Shipping address does not belong to user",
         ErrorCodes.ADDRESS_NOT_BELONG
       );
     }
   }
+
   if (validatedData.defaultBillingAddress) {
-    try {
-      billingAddress = await prismaClient.address.findFirstOrThrow({
-        where: {
-          id: validatedData.defaultBillingAddress,
-        },
-      });
-    } catch (error) {
-      throw new NotFoundException(
-        "address not found",
-        ErrorCodes.ADDRESS_NOT_FOUND
-      );
-    }
-    if (billingAddress.userId != req.user.id) {
+    const billingAddress = await prismaClient.address.findFirstOrThrow({
+      where: { id: validatedData.defaultBillingAddress },
+    });
+    if (req.user.role !== "ADMIN" && billingAddress.userId !== req.user.id) {
       throw new BadRequestsException(
-        "address does not belong to user",
+        "Billing address does not belong to user",
         ErrorCodes.ADDRESS_NOT_BELONG
       );
     }
   }
-  const updateUser = await prismaClient.user.update({
-    where: {
-      id: req.user.id,
-    },
+
+  // Update only provided fields
+  const updatedUser = await prismaClient.user.update({
+    where: { id: userId },
     data: validatedData,
   });
-  res.json(updateUser);
+
+  res.json(updatedUser);
 };
 
 export const listUsers = async (req: Request, res: Response) => {
   const users = await prismaClient.user.findMany({
-    skip: +Number(req.query.skip) || 0,
-    take: 5,
     select: {
       id: true,
       name: true,
@@ -132,9 +137,16 @@ export const listUsers = async (req: Request, res: Response) => {
 
 export const getUserById = async (req: Request, res: Response) => {
   try {
-    const user = await prismaClient.user.findFirstOrThrow({
-      where: { id: +req.params.id },
-      include: { address: true },
+    const id = Number(req.params.id);
+    if (isNaN(id)) {
+      return res.status(400).json({
+        message: "Invalid user ID",
+        errorCode: 1002,
+      });
+    }
+
+    const user = await prismaClient.user.findFirst({
+      where: { id },
       select: {
         id: true,
         name: true,
@@ -147,12 +159,34 @@ export const getUserById = async (req: Request, res: Response) => {
         updatedAt: true,
         defaultShippingAddress: true,
         defaultBillingAddress: true,
-        address: true,
+        address: {
+          // nested select
+          select: {
+            id: true,
+            city: true,
+            country: true,
+            pincode: true,
+          },
+        },
       },
     });
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found!!",
+        errorCode: 1001,
+        errors: null,
+      });
+    }
+
     res.json(user);
   } catch (error) {
-    throw new NotFoundException("User not found!!", ErrorCodes.USER_NOT_FOUND);
+    console.error(error);
+    res.status(500).json({
+      message: "Internal server error",
+      errorCode: 1000,
+      errors: error,
+    });
   }
 };
 

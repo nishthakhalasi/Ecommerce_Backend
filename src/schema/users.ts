@@ -21,7 +21,7 @@ export const UpdateUserSchema = z.object({
   defaultShippingAddress: z.number().optional(),
   defaultBillingAddress: z.number().optional(),
   phone: z.string().optional(),
-  profilePicture: z.string().url().optional(),
+  profilePicture: z.string().optional(),
   status: z.boolean().optional(),
   lastLogin: z.date().optional(),
 });
