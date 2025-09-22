@@ -205,3 +205,49 @@ export const changeUserRole = async (req: Request, res: Response) => {
     throw new NotFoundException("User not found!!", ErrorCodes.USER_NOT_FOUND);
   }
 };
+
+export const deleteUser = async (req: Request, res: Response) => {
+  try {
+    // 1️⃣ Check if logged in
+    if (!req.user) {
+      throw new UnauthorizedException("Unauthorized", ErrorCodes.UNAUTHORIZED);
+    }
+
+    // 2️⃣ Get user ID from params
+    const userId = Number(req.params.id);
+    if (isNaN(userId)) {
+      return res.status(400).json({ message: "Invalid user ID" });
+    }
+
+    // 3️⃣ Check if user exists
+    const existingUser = await prismaClient.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!existingUser) {
+      throw new NotFoundException("User not found", ErrorCodes.USER_NOT_FOUND);
+    }
+
+    // 4️⃣ Perform delete
+    await prismaClient.user.delete({
+      where: { id: userId },
+    });
+
+    // 5️⃣ Send success response
+    return res.status(200).json({
+      message: "User deleted successfully",
+      userId,
+    });
+  } catch (err: any) {
+    console.error("Delete user error:", err);
+
+    const statusCode = err?.statusCode || 500;
+    const message = err?.message || "Internal server error";
+    const errorCode = err?.errorCode;
+
+    return res.status(statusCode).json({
+      message,
+      errorCode,
+    });
+  }
+};

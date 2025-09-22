@@ -5,35 +5,47 @@ import { ErrorCodes } from "../exceptions/root";
 import { date } from "zod";
 
 export const createProduct = async (req: Request, res: Response) => {
-  //["tea","india"]=>"tea,india"
-
-  //create a validator to for this request
-
   const { name, description, price, tags } = req.body;
+
+  const tagsArray =
+    typeof tags === "string" ? tags.split(",").map((t) => t.trim()) : tags;
 
   const product = await prismaClient.product.create({
     data: {
       name,
       description,
-      price,
-      tags,
+      price: parseFloat(price),
+      tags: tagsArray,
+      photo: req.file?.filename || null,
     },
   });
+
   res.json(product);
 };
 
 export const updateProduct = async (req: Request, res: Response) => {
   try {
-    const product = req.body;
-    if (product.tags) {
-      product.tags = product.tags.join(",");
+    const { name, description, price, tags } = req.body;
+    const data: any = { name, description, price };
+
+    if (tags) {
+      data.tags = Array.isArray(tags)
+        ? tags
+        : tags.split(",").map((t: string) => t.trim());
     }
+
+    if (req.file) {
+      data.photo = req.file.filename;
+    }
+
     const updateProduct = await prismaClient.product.update({
-      where: { id: +req.params.id },
-      data: product,
+      where: { id: Number(req.params.id) },
+      data,
     });
+
     res.json(updateProduct);
   } catch (error) {
+    console.error(error);
     throw new NotFoundException(
       "Product not found",
       ErrorCodes.PRODUCT_NOT_FOUND

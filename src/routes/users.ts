@@ -5,6 +5,7 @@ import {
   addAddress,
   changeUserRole,
   deleteAddress,
+  deleteUser,
   getUserById,
   listAddress,
   listUsers,
@@ -46,6 +47,12 @@ usersRoutes.get(
   "/:id",
   [authMiddleware, adminMiddleware],
   errorHandler(getUserById)
+);
+
+usersRoutes.delete(
+  "/:id",
+  [authMiddleware, adminMiddleware],
+  errorHandler(deleteUser)
 );
 
 export default usersRoutes;
