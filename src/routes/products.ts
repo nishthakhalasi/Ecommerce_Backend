@@ -33,7 +33,7 @@ productRouter.delete(
 
 productRouter.get(
   "/",
-  [authMiddleware, adminMiddleware],
+  // [authMiddleware, adminMiddleware],
   errorHandler(listProduct)
 );
 
