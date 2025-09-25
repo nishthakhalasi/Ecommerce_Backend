@@ -13,31 +13,38 @@ const authMiddleware = async (
   res: Response,
   next: NextFunction
 ) => {
-  // 1. extract the token from header
-  const token = req.headers.authorization;
-  // 2. if the token is not present, throw an error of unauthorized
-  if (!token) {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader) {
     return next(
       new UnauthorizedException("Unauthorized", ErrorCodes.UNAUTHORIZED)
     );
   }
 
+  const token = authHeader.startsWith("Bearer ")
+    ? authHeader.split(" ")[1]
+    : authHeader;
+
   try {
-    // 3. if the token is present,verify that token and extract the payload
     const payload = jwt.verify(token, JWT_SECRET) as any;
-    // 4. to get the user from payload
+    console.log("✅ Token verified:", payload);
+
     const user = await prismaClient.user.findFirst({
       where: { id: payload.userId, status: true },
     });
+
     if (!user) {
+      console.log("❌ No active user found for:", payload.userId);
       return next(
         new UnauthorizedException("Unauthorized", ErrorCodes.UNAUTHORIZED)
       );
     }
-    // 5. to attach the user to the current request object
+
     req.user = user;
+    console.log("✅ User attached:", user.id);
     next();
   } catch (error) {
+    console.error("❌ JWT verify failed:", error);
     next(new UnauthorizedException("Unauthorized", ErrorCodes.UNAUTHORIZED));
   }
 };
