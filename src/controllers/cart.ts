@@ -5,6 +5,11 @@ import { prismaClient } from "..";
 import { NotFoundException } from "../exceptions/not-found";
 import { ErrorCodes } from "../exceptions/root";
 import { UnauthorizedException } from "../exceptions/unauthorized";
+import Stripe from "stripe";
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
+  apiVersion: "2025-08-27.basil",
+});
 
 export const addItemToCart = async (req: Request, res: Response) => {
   if (!req.user) {
@@ -71,5 +76,42 @@ export const getCart = async (req: Request, res: Response) => {
     res.json(cart);
   } catch (error) {
     console.log("error", error);
+  }
+};
+
+export const checkoutCart = async (req: Request, res: Response) => {
+  if (!req.user) {
+    throw new UnauthorizedException("Unauthorized", ErrorCodes.UNAUTHORIZED);
+  }
+  try {
+    const cartItems = await prismaClient.cartItem.findMany({
+      where: { userId: req.user.id },
+      include: { product: true },
+    });
+    if (cartItems.length === 0) {
+      return res.status(400).json({ message: "Cart is empty" });
+    }
+    const amount = cartItems.reduce(
+      (sum, item) => sum + Number(item.product.price) * item.quantity,
+      0
+    );
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount,
+      currency: "usd",
+      metadata: {
+        userId: req.user.id,
+        cartItems: JSON.stringify(
+          cartItems.map((item) => ({
+            productId: item.product.id,
+            quantity: item.quantity,
+          }))
+        ),
+      },
+    });
+
+    res.status(200).json({ clientSecret: paymentIntent.client_secret });
+  } catch (error: any) {
+    console.error(error);
+    res.status(500).json({ message: "Failed to create payment" });
   }
 };

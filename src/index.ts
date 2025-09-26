@@ -5,10 +5,14 @@ import rootRouter from "./routes/index.ts";
 import { PrismaClient } from "@prisma/client";
 import { errorMiddleware } from "./middlewares/errors.ts";
 import cors from "cors";
+import Stripe from "stripe";
 
 dotenv.config();
 const app: Express = express();
 const PORT = process.env.PORT;
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
+  apiVersion: "2025-08-27.basil",
+});
 
 app.use(
   cors({
