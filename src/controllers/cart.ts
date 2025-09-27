@@ -7,7 +7,9 @@ import { ErrorCodes } from "../exceptions/root";
 import { UnauthorizedException } from "../exceptions/unauthorized";
 import Stripe from "stripe";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
+  apiVersion: "2025-08-27.basil",
+});
 
 export const addItemToCart = async (req: Request, res: Response) => {
   if (!req.user) {
