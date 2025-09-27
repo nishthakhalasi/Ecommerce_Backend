@@ -75,6 +75,7 @@ model Product{
   photo       String?  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  isDeleted Boolean  @default(false)
 
   cartItems CartItem[]
   orders OrderProduct[]
@@ -116,7 +117,7 @@ model OrderProduct{
   orderId    Int
   order      Order     @relation(fields: [orderId], references: [id])
   productId    Int
-  product      Product     @relation(fields: [productId], references: [id])
+  product      Product     @relation(fields: [productId], references: [id],onDelete: Cascade)
   quantity Int
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

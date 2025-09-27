@@ -2,7 +2,6 @@ import { Request, Response } from "express";
 import { prismaClient } from "../index";
 import { NotFoundException } from "../exceptions/not-found";
 import { ErrorCodes } from "../exceptions/root";
-import { date } from "zod";
 
 export const createProduct = async (req: Request, res: Response) => {
   const { name, description, price, tags } = req.body;
@@ -55,10 +54,9 @@ export const updateProduct = async (req: Request, res: Response) => {
 
 export const deleteProduct = async (req: Request, res: Response) => {
   try {
-    const deletedProduct = await prismaClient.product.delete({
-      where: {
-        id: +req.params.id,
-      },
+    const deletedProduct = await prismaClient.product.update({
+      where: { id: +req.params.id },
+      data: { isDeleted: true },
     });
 
     res.json({
@@ -77,6 +75,7 @@ export const listProduct = async (req: Request, res: Response) => {
   const count = await prismaClient.product.count();
   const products = await prismaClient.product.findMany({
     skip: +Number(req.query.skip) || 0,
+    where: { isDeleted: false },
   });
   res.json({ count, date: products });
 };
@@ -86,6 +85,7 @@ export const getProductById = async (req: Request, res: Response) => {
     const product = await prismaClient.product.findFirstOrThrow({
       where: {
         id: +req.params.id,
+        isDeleted: false,
       },
     });
     res.json(product);

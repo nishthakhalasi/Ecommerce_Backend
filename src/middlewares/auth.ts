@@ -33,8 +33,12 @@ const authMiddleware = async (
     const payload = jwt.verify(token, JWT_SECRET) as any;
     console.log("Token verified:", payload);
 
-    const user = await prismaClient.user.findFirst({
-      where: { id: payload.userId, status: true },
+    // const user = await prismaClient.user.findFirst({
+    //   where: { id: payload.userId, status: true },
+    // });
+
+    const user = await prismaClient.user.findUnique({
+      where: { id: payload.userId },
     });
 
     if (!user) {
