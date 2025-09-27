@@ -25,26 +25,30 @@ const authMiddleware = async (
     ? authHeader.split(" ")[1]
     : authHeader;
 
+  if (!token) {
+    return next(new UnauthorizedException("No token", ErrorCodes.UNAUTHORIZED));
+  }
+
   try {
     const payload = jwt.verify(token, JWT_SECRET) as any;
-    console.log("✅ Token verified:", payload);
+    console.log("Token verified:", payload);
 
     const user = await prismaClient.user.findFirst({
       where: { id: payload.userId, status: true },
     });
 
     if (!user) {
-      console.log("❌ No active user found for:", payload.userId);
+      console.log("No active user found for:", payload.userId);
       return next(
         new UnauthorizedException("Unauthorized", ErrorCodes.UNAUTHORIZED)
       );
     }
 
     req.user = user;
-    console.log("✅ User attached:", user.id);
+    console.log("User attached:", user.id);
     next();
   } catch (error) {
-    console.error("❌ JWT verify failed:", error);
+    console.error(" JWT verify failed:", error);
     next(new UnauthorizedException("Unauthorized", ErrorCodes.UNAUTHORIZED));
   }
 };

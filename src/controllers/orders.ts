@@ -4,58 +4,129 @@ import { UnauthorizedException } from "../exceptions/unauthorized";
 import { ErrorCodes } from "../exceptions/root";
 import { NotFoundException } from "../exceptions/not-found";
 
+// export const createOrder = async (req: Request, res: Response) => {
+//   //1. to create a transaction
+//   //2. to list all the cart items and proceed if cart is not empty
+//   //3. calculate the total amount
+//   //4. fetch address of user
+//   //5. to define computed field for formatted address on address module
+//   //6. we eill create a order and order productsorder products
+//   //7. create event
+
+//   if (!req.user) {
+//     throw new UnauthorizedException("Unauthorized", ErrorCodes.UNAUTHORIZED);
+//   }
+//   return await prismaClient.$transaction(async (tx) => {
+//     const cartItems = await tx.cartItem.findMany({
+//       where: { userId: req.user!.id },
+//       include: { product: true },
+//     });
+
+//     if (cartItems.length == 0) {
+//       return res.json({ message: "cart is empty" });
+//     }
+
+//     const price = cartItems.reduce((prev, current) => {
+//       return prev + current.quantity * Number(current.product.price);
+//     }, 0);
+
+//     const address = await tx.address.findFirst({
+//       where: { id: req.user!.defaultShippingAddress! },
+//     });
+
+//     const order = await tx.order.create({
+//       data: {
+//         user: {
+//           connect: { id: req.user?.id },
+//         },
+//         netAmount: price,
+//         address: address!.formattedAddress,
+//         products: {
+//           create: cartItems.map((cart) => {
+//             return { productId: cart.productId, quantity: cart.quantity };
+//           }),
+//         },
+//       },
+//     });
+//     const orderEvent = await tx.orderEvent.create({
+//       data: { orderId: order.id },
+//     });
+//     await tx.cartItem.deleteMany({
+//       where: { userId: req.user!.id },
+//     });
+//     return res.json(order);
+//   });
+// };
+
 export const createOrder = async (req: Request, res: Response) => {
-  //1. to create a transaction
-  //2. to list all the cart items and proceed if cart is not empty
-  //3. calculate the total amount
-  //4. fetch address of user
-  //5. to define computed field for formatted address on address module
-  //6. we eill create a order and order productsorder products
-  //7. create event
-
   if (!req.user) {
-    throw new UnauthorizedException("Unauthorized", ErrorCodes.UNAUTHORIZED);
+    return res.status(401).json({ message: "Unauthorized" });
   }
-  return await prismaClient.$transaction(async (tx) => {
-    const cartItems = await tx.cartItem.findMany({
-      where: { userId: req.user!.id },
-      include: { product: true },
-    });
 
-    if (cartItems.length == 0) {
-      return res.json({ message: "cart is empty" });
-    }
+  try {
+    const order = await prismaClient.$transaction(async (tx) => {
+      // 1️⃣ Fetch cart items
+      const cartItems = await tx.cartItem.findMany({
+        where: { userId: req.user!.id },
+        include: { product: true },
+      });
 
-    const price = cartItems.reduce((prev, current) => {
-      return prev + current.quantity * Number(current.product.price);
-    }, 0);
+      if (!cartItems.length) {
+        throw new Error("Cart is empty");
+      }
 
-    const address = await tx.address.findFirst({
-      where: { id: req.user!.defaultShippingAddress! },
-    });
+      // 2️⃣ Calculate total price
+      const totalAmount = cartItems.reduce(
+        (sum, item) => sum + item.quantity * Number(item.product.price),
+        0
+      );
 
-    const order = await tx.order.create({
-      data: {
-        user: {
-          connect: { id: req.user?.id },
+      // 3️⃣ Fetch default shipping address
+      const address = await tx.address.findFirst({
+        where: { id: req.user!.defaultShippingAddress || undefined },
+      });
+
+      if (!address) {
+        throw new Error("No default shipping address found");
+      }
+
+      // 4️⃣ Create order
+      const newOrder = await tx.order.create({
+        data: {
+          userId: req.user!.id,
+          netAmount: totalAmount,
+          address: address.formattedAddress,
+          status: "PENDING", // set initial status
+          products: {
+            create: cartItems.map((cart) => ({
+              productId: cart.productId,
+              quantity: cart.quantity,
+            })),
+          },
         },
-        netAmount: price,
-        address: address!.formattedAddress,
-        products: {
-          create: cartItems.map((cart) => {
-            return { productId: cart.productId, quantity: cart.quantity };
-          }),
+        include: {
+          products: true,
         },
-      },
+      });
+
+      // 5️⃣ Create order event
+      await tx.orderEvent.create({
+        data: { orderId: newOrder.id, status: "PENDING" },
+      });
+
+      // 6️⃣ Clear cart
+      await tx.cartItem.deleteMany({ where: { userId: req.user!.id } });
+
+      return newOrder;
     });
-    const orderEvent = await tx.orderEvent.create({
-      data: { orderId: order.id },
-    });
-    await tx.cartItem.deleteMany({
-      where: { userId: req.user!.id },
-    });
-    return res.json(order);
-  });
+
+    res.status(201).json(order);
+  } catch (error: any) {
+    console.error("Create order error:", error.message);
+    res
+      .status(500)
+      .json({ message: error.message || "Failed to create order" });
+  }
 };
 
 export const listOrders = async (req: Request, res: Response) => {
@@ -93,16 +164,21 @@ export const cancelOrder = async (req: Request, res: Response) => {
 
 export const getOrderById = async (req: Request, res: Response) => {
   try {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
     const order = await prismaClient.order.findFirstOrThrow({
-      where: { id: +req.params.id },
-      include: { products: true, events: true },
+      where: { id: +req.params.id, userId: req.user.id },
+      include: {
+        products: {
+          include: { product: true },
+        },
+        events: true,
+      },
     });
+
     res.json(order);
   } catch (error) {
-    throw new NotFoundException(
-      "Order not found!!",
-      ErrorCodes.ORDER_NOT_FOUND
-    );
+    res.status(404).json({ message: "Order not found" });
   }
 };
 

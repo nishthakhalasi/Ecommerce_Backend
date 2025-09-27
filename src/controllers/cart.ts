@@ -73,6 +73,7 @@ export const getCart = async (req: Request, res: Response) => {
       where: { userId: req.user.id },
       include: { product: true },
     });
+    console.log("Cart from DB:", cart);
     res.json(cart);
   } catch (error) {
     console.log("error", error);
@@ -96,7 +97,7 @@ export const checkoutCart = async (req: Request, res: Response) => {
       0
     );
     const paymentIntent = await stripe.paymentIntents.create({
-      amount,
+      amount: Math.round(amount * 100),
       currency: "usd",
       metadata: {
         userId: req.user.id,
