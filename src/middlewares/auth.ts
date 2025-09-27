@@ -31,25 +31,21 @@ const authMiddleware = async (
 
   try {
     const payload = jwt.verify(token, JWT_SECRET) as any;
-    console.log("Token verified:", payload);
-
-    // const user = await prismaClient.user.findFirst({
-    //   where: { id: payload.userId, status: true },
-    // });
-
+    // console.log("Token verified:", payload);
     const user = await prismaClient.user.findUnique({
       where: { id: payload.userId },
     });
 
-    if (!user) {
-      console.log("No active user found for:", payload.userId);
+    if (!user || user.currentToken !== token) {
       return next(
-        new UnauthorizedException("Unauthorized", ErrorCodes.UNAUTHORIZED)
+        new UnauthorizedException(
+          "Logged in from another device",
+          ErrorCodes.UNAUTHORIZED
+        )
       );
     }
-
     req.user = user;
-    console.log("User attached:", user.id);
+    // console.log("User attached:", user.id);
     next();
   } catch (error) {
     console.error(" JWT verify failed:", error);

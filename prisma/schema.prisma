@@ -33,10 +33,12 @@ model User {
   email                  String    @unique
   password               String
   role                   Role      @default(USER)
-  phone                  String?   // optional phone number
-  profilePicture         String?   // URL to profile picture
-  status                 Boolean   @default(true) // active/inactive
-  lastLogin              DateTime? // optional last login timestamp
+  phone                  String?   
+  profilePicture         String?   
+  status                 Boolean   @default(true) 
+  lastLogin              DateTime? 
+  lastLoginIp            String?
+  currentToken           String? 
   defaultShippingAddress Int?
   defaultBillingAddress  Int?
 

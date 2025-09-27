@@ -7,6 +7,7 @@ import { ErrorCodes } from "../exceptions/root.ts";
 import { SignUpSchema } from "../schema/users.ts";
 import { NotFoundException } from "../exceptions/not-found.ts";
 import dotenv from "dotenv";
+import { getClientIp } from "../utils/ip.ts";
 
 dotenv.config();
 const JWT_SECRET = process.env.JWT_SECRET as string;
@@ -57,10 +58,7 @@ export const login = async (req: Request, res: Response) => {
       ErrorCodes.INCORRECT_PASSWORD
     );
   }
-  await prismaClient.user.update({
-    where: { id: user.id },
-    data: { lastLogin: new Date() },
-  });
+  const ipAddress = getClientIp(req);
   const token = jwt.sign(
     {
       userId: user.id,
@@ -69,12 +67,18 @@ export const login = async (req: Request, res: Response) => {
     JWT_SECRET,
     { expiresIn: "1h" }
   );
-  // res.json({ user, token });
-  const { password: _, ...userData } = user;
-  res.json({ ...userData, role: user.role, token });
-};
+  await prismaClient.user.update({
+    where: { id: user.id },
+    data: {
+      lastLogin: new Date(),
+      lastLoginIp: ipAddress,
+      currentToken: token,
+    },
+  });
 
-// /me -> return the logged in user
+  const { password: _, ...userData } = user;
+  res.json({ ...userData, role: user.role, token, ipAddress });
+};
 
 export const me = async (req: Request, res: Response) => {
   if (!req.user) {
