@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import { prismaClient } from "../index.ts";
 import { hashSync, compareSync } from "bcrypt";
-import jwt from "jsonwebtoken";
+import jwt, { JwtPayload } from "jsonwebtoken";
 import { BadRequestsException } from "../exceptions/bad-requests.ts";
 import { ErrorCodes } from "../exceptions/root.ts";
 import { SignUpSchema } from "../schema/users.ts";
@@ -19,7 +19,6 @@ export const signup = async (
 ) => {
   SignUpSchema.parse(req.body);
   const { email, password, name, phone } = req.body;
-  // Save uploaded file path if file exists
   const profilePicture = req.file ? `/uploads/${req.file.filename}` : null;
 
   let user = await prismaClient.user.findFirst({ where: { email } });
@@ -86,4 +85,29 @@ export const me = async (req: Request, res: Response) => {
   }
   const { password, ...userData } = req.user;
   res.json(userData);
+};
+
+export const validateToken = async (req: Request, res: Response) => {
+  const token = req.headers.authorization?.split(" ")[1];
+  if (!token) {
+    return res.status(401).json({ message: "No token" });
+  }
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload & {
+      userId: number;
+    };
+    const user = await prismaClient.user.findUnique({
+      where: { id: decoded.userId },
+    });
+
+    if (!user || user.currentToken !== token) {
+      return res
+        .status(401)
+        .json({ message: "Session expired. Please login again." });
+    }
+
+    return res.json({ valid: true, userId: user.id, role: user.role });
+  } catch (err) {
+    return res.status(401).json({ message: "Invalid or expired token" });
+  }
 };

@@ -8,6 +8,11 @@ import dotenv from "dotenv";
 dotenv.config();
 const JWT_SECRET = process.env.JWT_SECRET as string;
 
+interface JwtPayloadCustom {
+  userId: number;
+  role: string;
+}
+
 const authMiddleware = async (
   req: Request,
   res: Response,
@@ -30,20 +35,19 @@ const authMiddleware = async (
   }
 
   try {
-    const payload = jwt.verify(token, JWT_SECRET) as any;
+    const payload = jwt.verify(token, JWT_SECRET) as JwtPayloadCustom;
     // console.log("Token verified:", payload);
     const user = await prismaClient.user.findUnique({
       where: { id: payload.userId },
     });
 
     if (!user || user.currentToken !== token) {
-      return next(
-        new UnauthorizedException(
-          "Logged in from another device",
-          ErrorCodes.UNAUTHORIZED
-        )
-      );
+      return res.status(401).json({
+        success: false,
+        message: "Logged in from another device",
+      });
     }
+
     req.user = user;
     // console.log("User attached:", user.id);
     next();
